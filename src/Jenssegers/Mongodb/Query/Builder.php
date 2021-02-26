@@ -819,6 +819,11 @@ class Builder extends BaseBuilder
         return new Builder($this->connection, $this->processor);
     }
 
+    public function leftJoin($table, $first, $operator = null, $second = null)
+    {
+        return $this->join($table, $first, $operator, $second, 'left');
+    }
+
     /**
      * Perform an update query.
      * @param array $query
