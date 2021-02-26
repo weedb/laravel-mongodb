@@ -30,14 +30,14 @@ class JoinClause extends Builder
     /**
      * The grammar of the parent query builder.
      *
-     * @var \Illuminate\Database\Query\Grammars\Grammar
+     * @var Grammar
      */
     protected $parentGrammar;
 
     /**
      * The processor of the parent query builder.
      *
-     * @var \Illuminate\Database\Query\Processors\Processor
+     * @var Processor
      */
     protected $parentProcessor;
 
@@ -49,24 +49,24 @@ class JoinClause extends Builder
     protected $parentClass;
 
     /**
-     * Create a new join clause instance.
-     *
-     * @param  \Illuminate\Database\Query\Builder  $parentQuery
-     * @param  string  $type
-     * @param  string  $table
-     * @return void
+     * JoinClause constructor.
+     * @param Builder $parentQuery
+     * @param $type
+     * @param $table
      */
     public function __construct(Builder $parentQuery, $type, $table)
     {
         $this->type = $type;
         $this->table = $table;
         $this->parentClass = get_class($parentQuery);
-        $this->parentGrammar = $parentQuery->getGrammar();
+//        $this->parentGrammar = $parentQuery->getGrammar();
         $this->parentProcessor = $parentQuery->getProcessor();
         $this->parentConnection = $parentQuery->getConnection();
 
         parent::__construct(
-            $this->parentConnection, $this->parentGrammar, $this->parentProcessor
+            $this->parentConnection,
+            $this->parentProcessor,
+//            $this->parentGrammar,
         );
     }
 
