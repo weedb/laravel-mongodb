@@ -852,7 +852,7 @@ class Builder extends BaseBuilder
 
         return $this;
     }
-    protected function newJoinClause(self $parentQuery, $type, $table)
+    protected function newJoinClause($parentQuery, $type, $table)
     {
         return new JoinClause($parentQuery, $type, $table);
     }
