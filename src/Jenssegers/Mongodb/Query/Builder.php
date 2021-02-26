@@ -819,9 +819,42 @@ class Builder extends BaseBuilder
         return new Builder($this->connection, $this->processor);
     }
 
-    public function leftJoin($table, $first, $operator = null, $second = null)
+    public function leftJoin($tableOrModelClass, $first, $operator = null, $second = null)
     {
-        return $this->join($table, $first, $operator, $second, 'left');
+        return $this->join($tableOrModelClass, $first, $operator, $second, 'left');
+    }
+
+    public function join($table, $first, $operator = null, $second = null, $type = 'inner', $where = false)
+    {
+        $join = $this->newJoinClause($this, $type, $table);
+
+        // If the first "column" of the join is really a Closure instance the developer
+        // is trying to build a join with a complex "on" clause containing more than
+        // one condition, so we'll add the join and call a Closure with the query.
+        if ($first instanceof Closure) {
+            $first($join);
+
+            $this->joins[] = $join;
+
+            $this->addBinding($join->getBindings(), 'join');
+        }
+
+        // If the column is simply a string, we can assume the join simply has a basic
+        // "on" clause with a single condition. So we will just build the join with
+        // this simple join clauses attached to it. There is not a join callback.
+        else {
+            $method = $where ? 'where' : 'on';
+
+            $this->joins[] = $join->$method($first, $operator, $second);
+
+            $this->addBinding($join->getBindings(), 'join');
+        }
+
+        return $this;
+    }
+    protected function newJoinClause(self $parentQuery, $type, $table)
+    {
+        return new JoinClause($parentQuery, $type, $table);
     }
 
     /**
