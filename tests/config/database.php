@@ -13,6 +13,8 @@ return [
             'driver' => 'mongodb',
             'host' => $mongoHost,
             'database' => env('MONGO_DATABASE', 'unittest'),
+            'username' => 'burmistr',
+            'password' => 'gbpltw123',
         ],
 
         'dsn_mongodb' => [

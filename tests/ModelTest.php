@@ -746,4 +746,50 @@ class ModelTest extends TestCase
         $model->fill(['level1' => $dataValues]);
         $this->assertEquals($dataValues, $model->getAttribute('level1'));
     }
+    public function testLeftJoin()
+    {
+        User::query()->forceDelete();
+        Book::query()->forceDelete();
+
+        /** @var User $book */
+        $user = User::create([
+            'name' => 'John Doe',
+            'address' => [
+                'city' => 'Paris',
+                'country' => 'France',
+            ],
+        ]);
+        /** @var Book $book */
+        $book = Book::create([
+            'title' => 'A Game of Thrones',
+            'chapters' => [
+                'one' => [
+                    'title' => 'The first chapter',
+                ],
+            ],
+            'author_id' => new ObjectID($user->id)
+        ]);
+
+        /** @var \Jenssegers\Mongodb\Query\Builder $usersWithBooks */
+        $usersWithBooks = User::query();
+        $usersWithBooks = $usersWithBooks
+            ->where('title', 'A Game of Thrones')
+            ->leftJoin('books', 'users._id', 'books.author_id')
+            ->get();
+//        $usersWithBooks
+//            ->where('title', 'A Game of Thrones')
+//            ->leftJoin('books', function ($q1){
+//                $q1->on('users._id','=','books.author_id')
+//                    ->where('titelino', 'in closure')
+//                    ->leftJoin('books2', 'users._id2','=','books._id')
+//                    ->where('title', 'in closure2');
+//            })
+//            ->where('naaaah', 'The End of Thrones')
+//            ->get();
+        info(json_encode($usersWithBooks, JSON_UNESCAPED_UNICODE));
+        dd(1,$usersWithBooks);
+
+//        $this->assertNull($user);
+
+    }
 }

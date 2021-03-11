@@ -111,12 +111,12 @@ class Builder extends BaseBuilder
      * @var array
      */
     protected $conversion = [
-        '=' => '=',
+        '='  => '=',
         '!=' => '$ne',
         '<>' => '$ne',
-        '<' => '$lt',
+        '<'  => '$lt',
         '<=' => '$lte',
-        '>' => '$gt',
+        '>'  => '$gt',
         '>=' => '$gte',
     ];
 
@@ -179,7 +179,7 @@ class Builder extends BaseBuilder
      */
     public function value($column)
     {
-        $result = (array) $this->first([$column]);
+        $result = (array)$this->first([$column]);
 
         return Arr::get($result, $column);
     }
@@ -197,7 +197,7 @@ class Builder extends BaseBuilder
      */
     public function cursor($columns = [])
     {
-        $result =  $this->getFresh($columns, true);
+        $result = $this->getFresh($columns, true);
         if ($result instanceof LazyCollection) {
             return $result;
         }
@@ -224,11 +224,18 @@ class Builder extends BaseBuilder
             $this->columns = [];
         }
 
-        // Compile wheres
-        $wheres = $this->compileWheres();
+        if ($this->joins) {
+            // Compile joins
+            $wheres = $this->compileJoinsAndWheres($this->wheres);
+            info(json_encode($wheres, JSON_UNESCAPED_UNICODE));
+//            dd($wheres);
+        } else {
+            // Compile wheres
+            $wheres = $this->compileWheres();
+        }
 
         // Use MongoDB's aggregation framework when using grouping or aggregation functions.
-        if ($this->groups || $this->aggregate) {
+        if ($this->groups || $this->aggregate || $this->joins) {
             $group = [];
             $unwinds = [];
 
@@ -273,6 +280,14 @@ class Builder extends BaseBuilder
                         // https://docs.mongodb.com/manual/reference/method/cursor.count/
                         // count method returns int
 
+                        //If count was used, we replace wheres, with wheres which doesnt use
+                        // Execute aggregation
+                        $wheres
+                        $results = iterator_to_array($this->collection->aggregate($pipeline, $options));
+                        // Return results
+                        return new Collection($results);
+
+
                         $totalResults = $this->collection->count($wheres);
                         // Preserving format expected by framework
                         $results = [
@@ -299,7 +314,11 @@ class Builder extends BaseBuilder
             // Build the aggregation pipeline.
             $pipeline = [];
             if ($wheres) {
-                $pipeline[] = ['$match' => $wheres];
+                if ($this->joins){
+                    $pipeline = array_merge($pipeline, $wheres);
+                } else {
+                    $pipeline[] = ['$match' => $wheres];
+                }
             }
 
             // apply unwinds for subdocument array aggregation
@@ -421,13 +440,13 @@ class Builder extends BaseBuilder
         $key = [
             'connection' => $this->collection->getDatabaseName(),
             'collection' => $this->collection->getCollectionName(),
-            'wheres' => $this->wheres,
-            'columns' => $this->columns,
-            'groups' => $this->groups,
-            'orders' => $this->orders,
-            'offset' => $this->offset,
-            'limit' => $this->limit,
-            'aggregate' => $this->aggregate,
+            'wheres'     => $this->wheres,
+            'columns'    => $this->columns,
+            'groups'     => $this->groups,
+            'orders'     => $this->orders,
+            'offset'     => $this->offset,
+            'limit'      => $this->limit,
+            'aggregate'  => $this->aggregate,
         ];
 
         return md5(serialize(array_values($key)));
@@ -459,7 +478,7 @@ class Builder extends BaseBuilder
         $this->bindings['select'] = $previousSelectBindings;
 
         if (isset($results[0])) {
-            $result = (array) $results[0];
+            $result = (array)$results[0];
 
             return $result['aggregate'];
         }
@@ -569,7 +588,7 @@ class Builder extends BaseBuilder
         // Batch insert
         $result = $this->collection->insertMany($values);
 
-        return (1 == (int) $result->isAcknowledged());
+        return (1 == (int)$result->isAcknowledged());
     }
 
     /**
@@ -579,7 +598,7 @@ class Builder extends BaseBuilder
     {
         $result = $this->collection->insertOne($values);
 
-        if (1 == (int) $result->isAcknowledged()) {
+        if (1 == (int)$result->isAcknowledged()) {
             if ($sequence === null) {
                 $sequence = '_id';
             }
@@ -657,7 +676,7 @@ class Builder extends BaseBuilder
         // Convert ObjectID's to strings
         if ($key == '_id') {
             $results = $results->map(function ($item) {
-                $item['_id'] = (string) $item['_id'];
+                $item['_id'] = (string)$item['_id'];
                 return $item;
             });
         }
@@ -680,7 +699,7 @@ class Builder extends BaseBuilder
 
         $wheres = $this->compileWheres();
         $result = $this->collection->DeleteMany($wheres);
-        if (1 == (int) $result->isAcknowledged()) {
+        if (1 == (int)$result->isAcknowledged()) {
             return $result->getDeletedCount();
         }
 
@@ -706,7 +725,7 @@ class Builder extends BaseBuilder
     {
         $result = $this->collection->deleteMany([]);
 
-        return (1 === (int) $result->isAcknowledged());
+        return (1 === (int)$result->isAcknowledged());
     }
 
     /**
@@ -819,42 +838,82 @@ class Builder extends BaseBuilder
         return new Builder($this->connection, $this->processor);
     }
 
-    public function leftJoin($tableOrModelClass, $first, $operator = null, $second = null)
-    {
-        return $this->join($tableOrModelClass, $first, $operator, $second, 'left');
-    }
+//    public function leftJoin($table, $first, $operator = null, $second = null)
+//    {
+//        return $this->join($table, $first, $operator, $second, 'left');
+//    }
+//
+//    public function join($table, $first, $operator = null, $second = null, $type = 'inner', $where = false)
+//    {
+//        $join = $this->newJoinClause($this, $type, $table);
+//        // If the first "column" of the join is really a Closure instance the developer
+//        // is trying to build a join with a complex "on" clause containing more than
+//        // one condition, so we'll add the join and call a Closure with the query.
+//        if ($first instanceof Closure) {
+//            $first($join);
+//
+//            $this->joins[] = $join;
+//
+//            $this->addBinding($join->getBindings(), 'join');
+//        }
+//
+//        // If the column is simply a string, we can assume the join simply has a basic
+//        // "on" clause with a single condition. So we will just build the join with
+//        // this simple join clauses attached to it. There is not a join callback.
+//        else {
+//            $method = $where ? 'where' : 'on';
+//
+//            $this->joins[] = $join->$method($first, $operator, $second);
+//
+//            $this->addBinding($join->getBindings(), 'join');
+//        }
+//
+//        return $this;
+//    }
 
-    public function join($table, $first, $operator = null, $second = null, $type = 'inner', $where = false)
-    {
-        $join = $this->newJoinClause($this, $type, $table);
-
-        // If the first "column" of the join is really a Closure instance the developer
-        // is trying to build a join with a complex "on" clause containing more than
-        // one condition, so we'll add the join and call a Closure with the query.
-        if ($first instanceof Closure) {
-            $first($join);
-
-            $this->joins[] = $join;
-
-            $this->addBinding($join->getBindings(), 'join');
-        }
-
-        // If the column is simply a string, we can assume the join simply has a basic
-        // "on" clause with a single condition. So we will just build the join with
-        // this simple join clauses attached to it. There is not a join callback.
-        else {
-            $method = $where ? 'where' : 'on';
-
-            $this->joins[] = $join->$method($first, $operator, $second);
-
-            $this->addBinding($join->getBindings(), 'join');
-        }
-
-        return $this;
-    }
-    protected function newJoinClause($parentQuery, $type, $table)
+    /**
+     * @param Builder $parentQuery
+     * @param string $type
+     * @param string $table
+     * @return JoinClause
+     */
+    protected function newJoinClause($parentQuery, $type, $table): JoinClause
     {
         return new JoinClause($parentQuery, $type, $table);
+    }
+
+    /**
+     * @param array $parentWheres
+     * @return array
+     */
+    protected function compileJoinsAndWheres(array $parentWheres): array
+    {
+        $pipeline = [];
+        $joins = $this->joins?:[];
+        if ($joins){
+            foreach ($joins as $join){
+                /** @var JoinClause $join */
+                $pipeline = array_merge($pipeline, $join->compileJoin($parentWheres));
+            }
+            //now we get last join, for get info about used wheres in this join, and get wheres which added after last join
+            $lastJoin = $joins[array_key_last($joins)];
+            $lastUsedWhereKey = array_key_last($lastJoin->parentWheresKeys);
+            $lastUsedWhereKeyValue = is_int($lastUsedWhereKey)?$lastJoin->parentWheresKeys[$lastUsedWhereKey]:null;
+            //now, if joins exist, let's get wheres, which goes after him
+            if(is_int($lastUsedWhereKeyValue)){
+                $wheres = array_slice($this->wheres, $lastUsedWhereKeyValue + 1);
+            }
+        } else {//if no joins, we can get all wheres
+            $wheres = $this->wheres;
+        }
+
+        if($wheres ?? null){
+            $builder = $this->newQuery();
+            $builder->wheres = $wheres;
+            $matchAfterLookup = $builder->compileWheres();
+            $pipeline[] = ['$match' => ['$expr' => $matchAfterLookup]];
+        }
+        return $pipeline;
     }
 
     /**
@@ -872,7 +931,7 @@ class Builder extends BaseBuilder
 
         $wheres = $this->compileWheres();
         $result = $this->collection->UpdateMany($wheres, $query, $options);
-        if (1 == (int) $result->isAcknowledged()) {
+        if (1 == (int)$result->isAcknowledged()) {
             return $result->getModifiedCount() ? $result->getModifiedCount() : $result->getUpsertedCount();
         }
 
@@ -935,14 +994,14 @@ class Builder extends BaseBuilder
 
                 // Operator conversions
                 $convert = [
-                    'regexp' => 'regex',
-                    'elemmatch' => 'elemMatch',
+                    'regexp'        => 'regex',
+                    'elemmatch'     => 'elemMatch',
                     'geointersects' => 'geoIntersects',
-                    'geowithin' => 'geoWithin',
-                    'nearsphere' => 'nearSphere',
-                    'maxdistance' => 'maxDistance',
-                    'centersphere' => 'centerSphere',
-                    'uniquedocs' => 'uniqueDocs',
+                    'geowithin'     => 'geoWithin',
+                    'nearsphere'    => 'nearSphere',
+                    'maxdistance'   => 'maxDistance',
+                    'centersphere'  => 'centerSphere',
+                    'uniquedocs'    => 'uniqueDocs',
                 ];
 
                 if (array_key_exists($where['operator'], $convert)) {
