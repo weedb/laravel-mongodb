@@ -280,23 +280,26 @@ class Builder extends BaseBuilder
                         // https://docs.mongodb.com/manual/reference/method/cursor.count/
                         // count method returns int
 
-                        //If count was used, we replace wheres, with wheres which doesnt use
-                        // Execute aggregation
-                        $wheres
-                        $results = iterator_to_array($this->collection->aggregate($pipeline, $options));
-                        // Return results
-                        return new Collection($results);
+                        //When query have joins, we cant do collection->count()
+                        if ($this->joins){
+                            // Execute aggregation
+                            $wheres[] = ['$count'=>'aggregate'];
+                            $results = iterator_to_array($this->collection->aggregate($wheres, $this->getOptions()));
+                            // Return results
+                            return new Collection($results);
+                        } else {
+                            $totalResults = $this->collection->count($wheres);
+                            // Preserving format expected by framework
+                            $results = [
+                                [
+                                    '_id'       => null,
+                                    'aggregate' => $totalResults
+                                ]
+                            ];
+                            return new Collection($results);
+                        }
 
 
-                        $totalResults = $this->collection->count($wheres);
-                        // Preserving format expected by framework
-                        $results = [
-                            [
-                                '_id'       => null,
-                                'aggregate' => $totalResults
-                            ]
-                        ];
-                        return new Collection($results);
                     } elseif ($function == 'count') {
                         // Translate count into sum.
                         $group['aggregate'] = ['$sum' => 1];
@@ -344,17 +347,8 @@ class Builder extends BaseBuilder
                 $pipeline[] = ['$project' => $this->projections];
             }
 
-            $options = [
-                'typeMap' => ['root' => 'array', 'document' => 'array'],
-            ];
-
-            // Add custom query options
-            if (count($this->options)) {
-                $options = array_merge($options, $this->options);
-            }
-
             // Execute aggregation
-            $results = iterator_to_array($this->collection->aggregate($pipeline, $options));
+            $results = iterator_to_array($this->collection->aggregate($pipeline, $this->getOptions()));
 
             // Return results
             return new Collection($results);
@@ -406,16 +400,8 @@ class Builder extends BaseBuilder
                 $options['projection'] = $columns;
             }
 
-            // Fix for legacy support, converts the results to arrays instead of objects.
-            $options['typeMap'] = ['root' => 'array', 'document' => 'array'];
-
-            // Add custom query options
-            if (count($this->options)) {
-                $options = array_merge($options, $this->options);
-            }
-
             // Execute query and get MongoCursor
-            $cursor = $this->collection->find($wheres, $options);
+            $cursor = $this->collection->find($wheres, $this->getOptions());
 
             if ($returnLazy) {
                 return LazyCollection::make(function () use ($cursor) {
@@ -429,6 +415,17 @@ class Builder extends BaseBuilder
             $results = iterator_to_array($cursor, false);
             return new Collection($results);
         }
+    }
+
+    public function getOptions(){
+        // Fix for legacy support, converts the results to arrays instead of objects.
+        $options['typeMap'] = ['root' => 'array', 'document' => 'array'];
+
+        // Add custom query options
+        if (count($this->options)) {
+            $options = array_merge($options, $this->options);
+        }
+        return $options;
     }
 
     /**

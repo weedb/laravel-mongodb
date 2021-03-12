@@ -161,10 +161,11 @@ class JoinClause extends Builder
             $isJoinedCollectInFirst = Str::startsWith($first, $collectNameWithDot);
             $primaryColumn = $isJoinedCollectInFirst ? $second : $first;
 
-            $primaryColumn = 'result_' . Str::after($primaryColumn, '.');
-            $primaryColumn2 = "$" . $primaryColumn;
 
-            $result->$primaryColumn = $primaryColumn2;
+            $primaryColumn1 = 'result_' . Str::after($primaryColumn, '.');
+            $primaryColumn2 = "$" . Str::after($primaryColumn, '.');
+
+            $result->$primaryColumn1 = $primaryColumn2;
         }
         return $result;
     }

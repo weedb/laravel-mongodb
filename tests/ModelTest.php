@@ -759,6 +759,13 @@ class ModelTest extends TestCase
                 'country' => 'France',
             ],
         ]);
+        User::create([
+            'name' => 'Mad Max',
+            'address' => [
+                'city' => 'Gas Town',
+                'country' => 'Wasteland',
+            ],
+        ]);
         /** @var Book $book */
         $book = Book::create([
             'title' => 'A Game of Thrones',
@@ -787,7 +794,7 @@ class ModelTest extends TestCase
 //            ->where('naaaah', 'The End of Thrones')
 //            ->get();
         info(json_encode($usersWithBooks, JSON_UNESCAPED_UNICODE));
-        dd(1,$usersWithBooks);
+        dd($usersWithBooks);
 
 //        $this->assertNull($user);
 
