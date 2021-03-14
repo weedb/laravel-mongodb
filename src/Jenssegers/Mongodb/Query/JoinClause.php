@@ -119,6 +119,9 @@ class JoinClause extends Builder
         if ($this->joins) {
             $pipeline[1]['$lookup']['pipeline'] = array_merge($pipeline[1]['$lookup']['pipeline'], $this->compileJoinsAndWheres($this->wheres));
         }
+        if ($this->type === 'inner'){//if it's inner join, just remove documents, where lookup return empty array
+            $pipeline[2]['$match'] = [$this->getJoinCollection()=>['$ne'=>[]]];
+        }
         return $pipeline;
     }
 

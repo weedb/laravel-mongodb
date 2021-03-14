@@ -781,7 +781,7 @@ class ModelTest extends TestCase
         $usersWithBooks = User::query();
         $usersWithBooks = $usersWithBooks
             ->where('title', 'A Game of Thrones')
-            ->leftJoin('books', 'users._id', 'books.author_id')
+            ->innerJoin('books', 'users._id', 'books.author_id')
             ->get();
 //        $usersWithBooks
 //            ->where('title', 'A Game of Thrones')

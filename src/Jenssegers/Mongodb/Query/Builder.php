@@ -839,6 +839,10 @@ class Builder extends BaseBuilder
 //    {
 //        return $this->join($table, $first, $operator, $second, 'left');
 //    }
+    public function innerJoin($table, $first, $operator = null, $second = null)
+    {
+        return $this->join($table, $first, $operator, $second, 'inner');
+    }
 //
 //    public function join($table, $first, $operator = null, $second = null, $type = 'inner', $where = false)
 //    {
