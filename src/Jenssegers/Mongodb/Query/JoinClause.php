@@ -112,7 +112,7 @@ class JoinClause extends Builder
                 'as'       => $this->getJoinCollection(),
                 'let'      => $this->compileWheresColumnLet($columnWheres),
                 'pipeline' => [
-                    0 => ['$match' => ['$expr' => $this->compileWheresColumn($columnWheres)]],
+                    0 => ['$match' => $this->compileWheresColumn($columnWheres)],
                 ]
             ]
         ];
@@ -125,8 +125,8 @@ class JoinClause extends Builder
     protected function compileWheresColumn(array $columnWheres)
     {
         $collectNameWithDot = $this->getJoinCollection() . '.';
-        $result = [];
-        foreach ($columnWheres as $where) {
+        $compiled = [];
+        foreach ($columnWheres as $i => $where) {
             extract($where);
             $isJoinedCollectInFirst = Str::startsWith($first, $collectNameWithDot);
             $primaryColumn = $isJoinedCollectInFirst ? $second : $first;
@@ -136,15 +136,33 @@ class JoinClause extends Builder
             $joinedColumn = "$" . Str::after($joinedColumn, '.');
 
             if (!isset($operator) || $operator == '=') {
-                $query = [$joinedColumn, $primaryColumn];
+                $result = ['$eq' => [$joinedColumn, $primaryColumn]];
             } elseif (array_key_exists($operator, $this->conversion)) {
-                $query = [$this->conversion[$operator] => [$joinedColumn, $primaryColumn]];
+                $result = [$this->conversion[$operator] => [$joinedColumn, $primaryColumn]];
             } else {
-                $query = ['$' . $operator => [$joinedColumn, $primaryColumn]];
+                $result = ['$' . $operator => [$joinedColumn, $primaryColumn]];
             }
-            $result[] = $query;
+            // The next item in a "chain" of wheres devices the boolean of the
+            // first item. So if we see that there are multiple wheres, we will
+            // use the operator of the next where.
+            if ($i == 0 && count($columnWheres) > 1 && $where['boolean'] == 'and') {
+                $where['boolean'] = $columnWheres[$i + 1]['boolean'];
+            }
+            // Wrap the where with an $or operator.
+            if ($where['boolean'] == 'or') {
+                $result = ['$or' => [$result]];
+            }
+
+            // If there are multiple wheres, we will wrap it with $and. This is needed
+            // to make nested wheres work.
+            elseif (count($columnWheres) > 1) {
+                $result = ['$and' => [$result]];
+            }
+            $result = ['$expr' => $result];
+            // Merge the compiled where with the others.
+            $compiled = array_merge_recursive($compiled, $result);
         }
-        return $result;
+        return $compiled;
     }
 
     /**
@@ -160,7 +178,6 @@ class JoinClause extends Builder
             extract($where);
             $isJoinedCollectInFirst = Str::startsWith($first, $collectNameWithDot);
             $primaryColumn = $isJoinedCollectInFirst ? $second : $first;
-
 
             $primaryColumn1 = 'result_' . Str::after($primaryColumn, '.');
             $primaryColumn2 = "$" . Str::after($primaryColumn, '.');
