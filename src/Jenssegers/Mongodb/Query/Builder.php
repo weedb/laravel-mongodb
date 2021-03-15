@@ -896,10 +896,16 @@ class Builder extends BaseBuilder
                 /** @var JoinClause $join */
                 $pipeline = array_merge($pipeline, $join->compileJoin($parentWheres));
             }
-            //now we get last join, for get info about used wheres in this join, and get wheres which added after last join
-            $lastJoin = $joins[array_key_last($joins)];
-            $lastUsedWhereKey = array_key_last($lastJoin->parentWheresKeys);
-            $lastUsedWhereKeyValue = is_int($lastUsedWhereKey)?$lastJoin->parentWheresKeys[$lastUsedWhereKey]:null;
+            //now we get last join, which was used parentWheresKeys. reverse array and start trying to find last element with parentWheresKeys
+            $joins = array_reverse($joins);
+            $lastUsedWhereKeyValue = null;
+            foreach ($joins as $reversedJoin){
+                if ($reversedJoin->parentWheresKeys){
+                    $lastUsedWhereKey = array_key_last($reversedJoin->parentWheresKeys);
+                    $lastUsedWhereKeyValue = is_int($lastUsedWhereKey)?$reversedJoin->parentWheresKeys[$lastUsedWhereKey]:null;
+                    break;
+                }
+            }
             //now, if joins exist, let's get wheres, which goes after him
             if(is_int($lastUsedWhereKeyValue)){
                 $wheres = array_slice($this->wheres, $lastUsedWhereKeyValue + 1);

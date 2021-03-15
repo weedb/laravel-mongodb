@@ -779,14 +779,16 @@ class ModelTest extends TestCase
 
         /** @var \Jenssegers\Mongodb\Query\Builder $usersWithBooks */
         $usersWithBooks = User::query();
-        $usersWithBooks = $usersWithBooks
+        $usersWithBooks
             ->where('name', 'John Doe')
             ->leftJoin('books', function ($booksJoin){
                 $booksJoin->on('users._id', 'books.author_id')->where('title', 'A Game of Thrones');
             })
-            ->where(function ($q2){
-                $q2->whereIn('books.name', ['John Doe'])->orWhereIn('books.name', ['John Doe1']);
+            ->leftJoin('foxes',function ($foxesJoin){
+                $foxesJoin->on('users._id','foxes.master_id')
+                    ->whereNull('date_end')->whereNull('deleted_at');
             })
+            ->where('name', 'John Doe')
 //            $qAccountIdsWhere->whereIn('registry_periods.account_id', $accountsIds)->orWhereIn('owner_periods.account_id', $accountsIds);
 
             ->get();
