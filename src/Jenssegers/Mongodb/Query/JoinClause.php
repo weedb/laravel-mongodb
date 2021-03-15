@@ -369,6 +369,18 @@ class JoinClause extends Builder
 
         return ['$all' => ['$'.$column, array_values($values)]];
     }
+    /**
+     * @param array $where
+     * @return mixed
+     */
+    protected function compileWhereNested(array $where)
+    {
+        extract($where);
+
+        $new = $this->newQuery();
+        $new->wheres = $query->wheres;
+        return $new->compileWheres();
+    }
 
     /**
      * @param array $where

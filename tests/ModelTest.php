@@ -781,9 +781,14 @@ class ModelTest extends TestCase
         $usersWithBooks = User::query();
         $usersWithBooks = $usersWithBooks
             ->where('name', 'John Doe')
-            ->innerJoin('books', function ($booksJoin){
+            ->leftJoin('books', function ($booksJoin){
                 $booksJoin->on('users._id', 'books.author_id')->where('title', 'A Game of Thrones');
             })
+            ->where(function ($q2){
+                $q2->whereIn('books.name', ['John Doe'])->orWhereIn('books.name', ['John Doe1']);
+            })
+//            $qAccountIdsWhere->whereIn('registry_periods.account_id', $accountsIds)->orWhereIn('owner_periods.account_id', $accountsIds);
+
             ->get();
 //        $usersWithBooks
 //            ->where('title', 'A Game of Thrones')
