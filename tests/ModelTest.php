@@ -780,8 +780,10 @@ class ModelTest extends TestCase
         /** @var \Jenssegers\Mongodb\Query\Builder $usersWithBooks */
         $usersWithBooks = User::query();
         $usersWithBooks = $usersWithBooks
-            ->where('title', 'A Game of Thrones')
-            ->innerJoin('books', 'users._id', 'books.author_id')
+            ->where('name', 'John Doe')
+            ->innerJoin('books', function ($booksJoin){
+                $booksJoin->on('users._id', 'books.author_id')->where('title', 'A Game of Thrones');
+            })
             ->get();
 //        $usersWithBooks
 //            ->where('title', 'A Game of Thrones')
@@ -791,7 +793,7 @@ class ModelTest extends TestCase
 //                    ->leftJoin('books2', 'users._id2','=','books._id')
 //                    ->where('title', 'in closure2');
 //            })
-//            ->where('naaaah', 'The End of Thrones')
+//            ->where('naaaah', 'The End of Throners')
 //            ->get();
         info(json_encode($usersWithBooks, JSON_UNESCAPED_UNICODE));
         dd($usersWithBooks);

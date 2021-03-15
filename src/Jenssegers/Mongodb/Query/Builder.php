@@ -912,7 +912,7 @@ class Builder extends BaseBuilder
             $builder = $this->newQuery();
             $builder->wheres = $wheres;
             $matchAfterLookup = $builder->compileWheres();
-            $pipeline[] = ['$match' => ['$expr' => $matchAfterLookup]];
+            $pipeline[] = ['$match' => $matchAfterLookup];
         }
         return $pipeline;
     }
