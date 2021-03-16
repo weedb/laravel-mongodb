@@ -778,15 +778,9 @@ class ModelTest extends TestCase
         ]);
 
         /** @var \Jenssegers\Mongodb\Query\Builder $usersWithBooks */
-        $usersWithBooks = User::query();
-        $usersWithBooks
-            ->where('name', 'John Doe')
-            ->leftJoin('books', function ($booksJoin){
-                $booksJoin->on('users._id', 'books.author_id')->where('title', 'A Game of Thrones');
-            })
-            ->leftJoin('foxes',function ($foxesJoin){
-                $foxesJoin->on('users._id','foxes.master_id')
-                    ->whereNull('date_end')->whereNull('deleted_at');
+        $usersWithBooks = User::query()
+            ->innerJoin('books', function ($booksJoin){
+                $booksJoin->on('users._id', 'books.author_id')->where('title','like', '%A Game of Throne%');
             })
             ->where('name', 'John Doe')
 //            $qAccountIdsWhere->whereIn('registry_periods.account_id', $accountsIds)->orWhereIn('owner_periods.account_id', $accountsIds);
