@@ -428,7 +428,11 @@ class JoinClause extends Builder
         }
 
         if (!isset($operator) || $operator == '=') {
-            $query = ['$eq'=>['$'.$column, $value]];
+            if (is_null($value)){
+                $query = ['$ifNull'=>['$'.$column, 1]];
+            } else {
+                $query = ['$eq'=>['$'.$column, $value]];
+            }
         } elseif (array_key_exists($operator, $this->conversion)) {
             $query = [$this->conversion[$operator] => ['$'.$column, $value]];
         } else {
