@@ -43,7 +43,7 @@
         </whitelist>
     </filter>
     <php>
-        <env name="MONGO_HOST" value="172.19.0.1"/>
+        <env name="MONGO_HOST" value="10.31.1.1"/>
         <env name="MONGO_DATABASE" value="unittest"/>
         <env name="MONGO_PORT" value="27017"/>
         <env name="MYSQL_HOST" value="mysql"/>
