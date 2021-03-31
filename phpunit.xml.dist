@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit backupGlobals="false"
-         backupStaticAttributes="false"
-         bootstrap="vendor/autoload.php"
-         colors="true"
-         convertErrorsToExceptions="true"
-         convertNoticesToExceptions="true"
-         convertWarningsToExceptions="true"
-         processIsolation="false"
-         stopOnFailure="false">
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" backupGlobals="false" backupStaticAttributes="false" bootstrap="vendor/autoload.php" colors="true" convertErrorsToExceptions="true" convertNoticesToExceptions="true" convertWarningsToExceptions="true" processIsolation="false" stopOnFailure="false" xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.3/phpunit.xsd">
+    <coverage processUncoveredFiles="true">
+        <include>
+            <directory suffix=".php">./src</directory>
+        </include>
+    </coverage>
     <testsuites>
         <testsuite name="all">
             <directory>tests/</directory>
@@ -21,6 +18,10 @@
         <testsuite name="builder">
             <file>tests/QueryBuilderTest.php</file>
             <file>tests/QueryTest.php</file>
+        </testsuite>
+        <testsuite name="transaction">
+            <file>tests/TransactionBuilderTest.php</file>
+            <file>tests/TransactionTest.php</file>
         </testsuite>
         <testsuite name="model">
             <file>tests/ModelTest.php</file>
@@ -37,13 +38,9 @@
             <file>tests/ValidationTest.php</file>
         </testsuite>
     </testsuites>
-    <filter>
-        <whitelist processUncoveredFilesFromWhitelist="true">
-            <directory suffix=".php">./src</directory>
-        </whitelist>
-    </filter>
     <php>
-        <env name="MONGO_HOST" value="10.31.1.1"/>
+        <env name="MONGO_HOST" value="mongodb"/>
+        <env name="MONGO_REPL_HOST" value="mongodb_repl"/>
         <env name="MONGO_DATABASE" value="unittest"/>
         <env name="MONGO_PORT" value="27017"/>
         <env name="MYSQL_HOST" value="mysql"/>

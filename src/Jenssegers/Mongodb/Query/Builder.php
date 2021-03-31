@@ -111,12 +111,12 @@ class Builder extends BaseBuilder
      * @var array
      */
     protected $conversion = [
-        '='  => '=',
+        '=' => '=',
         '!=' => '$ne',
         '<>' => '$ne',
-        '<'  => '$lt',
+        '<' => '$lt',
         '<=' => '$lte',
-        '>'  => '$gt',
+        '>' => '$gt',
         '>=' => '$gte',
     ];
 
@@ -179,7 +179,7 @@ class Builder extends BaseBuilder
      */
     public function value($column)
     {
-        $result = (array)$this->first([$column]);
+        $result = (array) $this->first([$column]);
 
         return Arr::get($result, $column);
     }
@@ -197,7 +197,7 @@ class Builder extends BaseBuilder
      */
     public function cursor($columns = [])
     {
-        $result = $this->getFresh($columns, true);
+        $result =  $this->getFresh($columns, true);
         if ($result instanceof LazyCollection) {
             return $result;
         }
@@ -227,8 +227,6 @@ class Builder extends BaseBuilder
         if ($this->joins) {
             // Compile joins
             $wheres = $this->compileJoinsAndWheres($this->wheres);
-            info(json_encode($wheres, JSON_UNESCAPED_UNICODE));
-//            dd($wheres);
         } else {
             // Compile wheres
             $wheres = $this->compileWheres();
@@ -283,8 +281,19 @@ class Builder extends BaseBuilder
                         //When query have joins, we cant do collection->count()
                         if ($this->joins){
                             // Execute aggregation
+                            $options = [
+                                'typeMap' => ['root' => 'array', 'document' => 'array'],
+                            ];
+
+                            // Add custom query options
+                            if (count($this->options)) {
+                                $options = array_merge($options, $this->options);
+                            }
+
+                            // if transaction in session
+                            $options = $this->setSession($options);
                             $wheres[] = ['$count'=>'aggregate'];
-                            $results = iterator_to_array($this->collection->aggregate($wheres, $this->getOptions()));
+                            $results = iterator_to_array($this->collection->aggregate($wheres, $options));
                             // Return results
                             return new Collection($results);
                         } else {
@@ -347,8 +356,20 @@ class Builder extends BaseBuilder
                 $pipeline[] = ['$project' => $this->projections];
             }
 
+            $options = [
+                'typeMap' => ['root' => 'array', 'document' => 'array'],
+            ];
+
+            // Add custom query options
+            if (count($this->options)) {
+                $options = array_merge($options, $this->options);
+            }
+
+            // if transaction in session
+            $options = $this->setSession($options);
+
             // Execute aggregation
-            $results = iterator_to_array($this->collection->aggregate($pipeline, $this->getOptions()));
+            $results = iterator_to_array($this->collection->aggregate($pipeline, $options));
 
             // Return results
             return new Collection($results);
@@ -357,12 +378,12 @@ class Builder extends BaseBuilder
             // Return distinct results directly
             $column = isset($this->columns[0]) ? $this->columns[0] : '_id';
 
+            $options = [];
+            // if transaction in session
+            $options = $this->setSession($options);
+
             // Execute distinct
-            if ($wheres) {
-                $result = $this->collection->distinct($column, $wheres);
-            } else {
-                $result = $this->collection->distinct($column);
-            }
+            $result = $this->collection->distinct($column, $wheres ?: [], $options);
 
             return new Collection($result);
         } // Normal query
@@ -400,8 +421,19 @@ class Builder extends BaseBuilder
                 $options['projection'] = $columns;
             }
 
+            // Fix for legacy support, converts the results to arrays instead of objects.
+            $options['typeMap'] = ['root' => 'array', 'document' => 'array'];
+
+            // Add custom query options
+            if (count($this->options)) {
+                $options = array_merge($options, $this->options);
+            }
+
+            // if transaction in session
+            $options = $this->setSession($options);
+
             // Execute query and get MongoCursor
-            $cursor = $this->collection->find($wheres, $this->getOptions());
+            $cursor = $this->collection->find($wheres, $options);
 
             if ($returnLazy) {
                 return LazyCollection::make(function () use ($cursor) {
@@ -417,17 +449,6 @@ class Builder extends BaseBuilder
         }
     }
 
-    public function getOptions(){
-        // Fix for legacy support, converts the results to arrays instead of objects.
-        $options['typeMap'] = ['root' => 'array', 'document' => 'array'];
-
-        // Add custom query options
-        if (count($this->options)) {
-            $options = array_merge($options, $this->options);
-        }
-        return $options;
-    }
-
     /**
      * Generate the unique cache key for the current query.
      * @return string
@@ -437,13 +458,13 @@ class Builder extends BaseBuilder
         $key = [
             'connection' => $this->collection->getDatabaseName(),
             'collection' => $this->collection->getCollectionName(),
-            'wheres'     => $this->wheres,
-            'columns'    => $this->columns,
-            'groups'     => $this->groups,
-            'orders'     => $this->orders,
-            'offset'     => $this->offset,
-            'limit'      => $this->limit,
-            'aggregate'  => $this->aggregate,
+            'wheres' => $this->wheres,
+            'columns' => $this->columns,
+            'groups' => $this->groups,
+            'orders' => $this->orders,
+            'offset' => $this->offset,
+            'limit' => $this->limit,
+            'aggregate' => $this->aggregate,
         ];
 
         return md5(serialize(array_values($key)));
@@ -475,7 +496,7 @@ class Builder extends BaseBuilder
         $this->bindings['select'] = $previousSelectBindings;
 
         if (isset($results[0])) {
-            $result = (array)$results[0];
+            $result = (array) $results[0];
 
             return $result['aggregate'];
         }
@@ -582,10 +603,12 @@ class Builder extends BaseBuilder
             $values = [$values];
         }
 
-        // Batch insert
-        $result = $this->collection->insertMany($values);
+        // if transaction in session
+        $options = $this->setSession();
 
-        return (1 == (int)$result->isAcknowledged());
+        $result = $this->collection->insertMany($values, $options);
+
+        return (1 == (int) $result->isAcknowledged());
     }
 
     /**
@@ -593,9 +616,12 @@ class Builder extends BaseBuilder
      */
     public function insertGetId(array $values, $sequence = null)
     {
-        $result = $this->collection->insertOne($values);
+        // if transaction in session
+        $options = $this->setSession();
 
-        if (1 == (int)$result->isAcknowledged()) {
+        $result = $this->collection->insertOne($values, $options);
+
+        if (1 == (int) $result->isAcknowledged()) {
             if ($sequence === null) {
                 $sequence = '_id';
             }
@@ -614,6 +640,8 @@ class Builder extends BaseBuilder
         if (!Str::startsWith(key($values), '$')) {
             $values = ['$set' => $values];
         }
+        // if transaction in session
+        $options = $this->setSession($options);
 
         return $this->performUpdate($values, $options);
     }
@@ -635,6 +663,9 @@ class Builder extends BaseBuilder
 
             $query->orWhereNotNull($column);
         });
+
+        // if transaction in session
+        $options = $this->setSession($options);
 
         return $this->performUpdate($query, $options);
     }
@@ -673,7 +704,7 @@ class Builder extends BaseBuilder
         // Convert ObjectID's to strings
         if ($key == '_id') {
             $results = $results->map(function ($item) {
-                $item['_id'] = (string)$item['_id'];
+                $item['_id'] = (string) $item['_id'];
                 return $item;
             });
         }
@@ -695,8 +726,12 @@ class Builder extends BaseBuilder
         }
 
         $wheres = $this->compileWheres();
-        $result = $this->collection->DeleteMany($wheres);
-        if (1 == (int)$result->isAcknowledged()) {
+
+        // if transaction in session
+        $options = $this->setSession();
+
+        $result = $this->collection->DeleteMany($wheres, $options);
+        if (1 == (int) $result->isAcknowledged()) {
             return $result->getDeletedCount();
         }
 
@@ -720,9 +755,12 @@ class Builder extends BaseBuilder
      */
     public function truncate(): bool
     {
-        $result = $this->collection->deleteMany([]);
+        // Check if transaction exist in session
+        $options = $this->setSession();
 
-        return (1 === (int)$result->isAcknowledged());
+        $result = $this->collection->deleteMany($options);
+
+        return (1 === (int) $result->isAcknowledged());
     }
 
     /**
@@ -835,43 +873,10 @@ class Builder extends BaseBuilder
         return new Builder($this->connection, $this->processor);
     }
 
-//    public function leftJoin($table, $first, $operator = null, $second = null)
-//    {
-//        return $this->join($table, $first, $operator, $second, 'left');
-//    }
     public function innerJoin($table, $first, $operator = null, $second = null)
     {
         return $this->join($table, $first, $operator, $second, 'inner');
     }
-//
-//    public function join($table, $first, $operator = null, $second = null, $type = 'inner', $where = false)
-//    {
-//        $join = $this->newJoinClause($this, $type, $table);
-//        // If the first "column" of the join is really a Closure instance the developer
-//        // is trying to build a join with a complex "on" clause containing more than
-//        // one condition, so we'll add the join and call a Closure with the query.
-//        if ($first instanceof Closure) {
-//            $first($join);
-//
-//            $this->joins[] = $join;
-//
-//            $this->addBinding($join->getBindings(), 'join');
-//        }
-//
-//        // If the column is simply a string, we can assume the join simply has a basic
-//        // "on" clause with a single condition. So we will just build the join with
-//        // this simple join clauses attached to it. There is not a join callback.
-//        else {
-//            $method = $where ? 'where' : 'on';
-//
-//            $this->joins[] = $join->$method($first, $operator, $second);
-//
-//            $this->addBinding($join->getBindings(), 'join');
-//        }
-//
-//        return $this;
-//    }
-
     /**
      * @param Builder $parentQuery
      * @param string $type
@@ -882,6 +887,7 @@ class Builder extends BaseBuilder
     {
         return new JoinClause($parentQuery, $type, $table);
     }
+
 
     /**
      * @param array $parentWheres
@@ -936,9 +942,12 @@ class Builder extends BaseBuilder
             $options['multiple'] = true;
         }
 
+        // Check if transaction exist in session
+        $options = $this->setSession($options);
+
         $wheres = $this->compileWheres();
         $result = $this->collection->UpdateMany($wheres, $query, $options);
-        if (1 == (int)$result->isAcknowledged()) {
+        if (1 == (int) $result->isAcknowledged()) {
             return $result->getModifiedCount() ? $result->getModifiedCount() : $result->getUpsertedCount();
         }
 
@@ -1001,14 +1010,14 @@ class Builder extends BaseBuilder
 
                 // Operator conversions
                 $convert = [
-                    'regexp'        => 'regex',
-                    'elemmatch'     => 'elemMatch',
+                    'regexp' => 'regex',
+                    'elemmatch' => 'elemMatch',
                     'geointersects' => 'geoIntersects',
-                    'geowithin'     => 'geoWithin',
-                    'nearsphere'    => 'nearSphere',
-                    'maxdistance'   => 'maxDistance',
-                    'centersphere'  => 'centerSphere',
-                    'uniquedocs'    => 'uniqueDocs',
+                    'geowithin' => 'geoWithin',
+                    'nearsphere' => 'nearSphere',
+                    'maxdistance' => 'maxDistance',
+                    'centersphere' => 'centerSphere',
+                    'uniquedocs' => 'uniqueDocs',
                 ];
 
                 if (array_key_exists($where['operator'], $convert)) {
@@ -1255,6 +1264,19 @@ class Builder extends BaseBuilder
         $this->options = $options;
 
         return $this;
+    }
+
+    /**
+     * Set session for the transaction
+     * @param $session
+     * @return mixed
+     */
+    protected function setSession($options = [])
+    {
+        if (!isset($options['session']) && ($session = $this->connection->getSession())) {
+            $options['session'] = $session;
+        }
+        return $options;
     }
 
     /**
