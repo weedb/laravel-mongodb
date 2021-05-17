@@ -46,6 +46,11 @@ class Builder extends EloquentBuilder
         return $this->toBase()->update($this->addUpdatedAtColumn($values), $options);
     }
 
+    public function upsertByIds(array $values, $filterBy, $options = []):array
+    {
+        return $this->query->upsertByIds($values, $filterBy, $options);
+    }
+
     /**
      * @inheritdoc
      */

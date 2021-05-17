@@ -646,6 +646,32 @@ class Builder extends BaseBuilder
         return $this->performUpdate($values, $options);
     }
 
+    public function upsertByIds(array $values, $filterBy, $options = []):array
+    {
+        $operations = [];
+
+        // if transaction in session
+        $options = $this->setSession($options);
+
+        foreach ($values as $value){
+            $isIdKeyExist = array_key_exists('_id',$value);
+            if ($isIdKeyExist && !is_null($value['_id'])){
+                $operations[] = ['updateOne' => [array_intersect_key($value, array_flip($filterBy)), ['$set' => $value], $options]];
+            } else {
+                if ($isIdKeyExist){
+                    unset($value['_id']);
+                }
+                $operations[] = ['insertOne' => [$value, $options]];
+            }
+        }
+        $result = $this->collection->bulkWrite($operations);
+
+        if (1 == (int) $result->isAcknowledged()) {
+            return ['modified' => $result->getModifiedCount(), 'inserted' => $result->getInsertedCount()];
+        }
+        return ['modified' => 0, 'inserted' => 0];
+    }
+
     /**
      * @inheritdoc
      */
