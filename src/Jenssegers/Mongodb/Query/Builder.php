@@ -128,6 +128,10 @@ class Builder extends BaseBuilder
         $this->grammar = new Grammar;
         $this->connection = $connection;
         $this->processor = $processor;
+
+        if($timeoutMs = $this->connection->getConfig('defaultMaxTimeMS')){
+            $this->timeout = (int)$timeoutMs;
+        }
     }
 
     /**
@@ -149,7 +153,7 @@ class Builder extends BaseBuilder
      */
     public function timeout($seconds)
     {
-        $this->timeout = $seconds;
+        $this->timeout = $seconds * 1000;
 
         return $this;
     }
@@ -359,6 +363,9 @@ class Builder extends BaseBuilder
             $options = [
                 'typeMap' => ['root' => 'array', 'document' => 'array'],
             ];
+            if ($this->timeout) {
+                $options['maxTimeMS'] = $this->timeout;
+            }
 
             // Add custom query options
             if (count($this->options)) {
@@ -379,6 +386,11 @@ class Builder extends BaseBuilder
             $column = isset($this->columns[0]) ? $this->columns[0] : '_id';
 
             $options = [];
+
+            if ($this->timeout) {
+                $options['maxTimeMS'] = $this->timeout;
+            }
+
             // if transaction in session
             $options = $this->setSession($options);
 
